@@ -1,92 +1,127 @@
-# Adaptive Exam Preparation and Performance Analyzer
+<h1 align="center">Adaptive Exam Preparation and Performance Analyzer</h1>
 
-## Overview
+<p align="center">
+  <strong>An intelligent platform designed to streamline student exam preparation using OCR, NLP, and adaptive learning algorithms.</strong>
+</p>
 
-Students often struggle to prepare effectively for exams because their study materials, such as question banks and notes, are unorganized and difficult to analyze manually. They face challenges in identifying weak topics, managing revision time, and tracking preparation progress.
+<p align="center">
+  <img src="https://img.shields.io/badge/Django-5.2-092E20?style=for-the-badge&logo=django&logoColor=white" alt="Django" />
+  <img src="https://img.shields.io/badge/PostgreSQL-316192?style=for-the-badge&logo=postgresql&logoColor=white" alt="PostgreSQL" />
+  <img src="https://img.shields.io/badge/Redis-DC382D?style=for-the-badge&logo=redis&logoColor=white" alt="Redis" />
+  <img src="https://img.shields.io/badge/Docker-2496ED?style=for-the-badge&logo=docker&logoColor=white" alt="Docker" />
+</p>
 
-This project aims to develop an adaptive exam preparation platform where students can upload PDFs or handwritten notes along with question banks. The system uses OCR and lightweight NLP techniques to extract topics and automatically generate quizzes. Based on quiz accuracy and time taken, the platform analyzes student performance, identifies weak areas, and generates personalized study schedules and recommendations.
+---
 
-## Tech Stack
+## 📖 Overview
 
-The system focuses on efficient software engineering and lightweight machine learning instead of relying on external AI APIs.
+The **Adaptive Exam Preparation and Performance Analyzer** eliminates the chaos of unorganized study materials. By allowing students to upload varied educational documents (PDFs, typed notes, and handwritten notes), the platform automatically extracts knowledge topics, generates personalized quizzes, and provides deep performance analytics. 
 
-- **Frontend**: React
-- **Backend Framework**: Django REST Framework (DRF)
-- **Database**: PostgreSQL (Primary Data Source)
-- **Caching & Sessions**: Redis (For API-level acceleration and temporary caching)
-- **Machine Learning & Extraction Pipeline**: Python-based OCR/NLP libraries
-  - **Camelot & Pandas**: For structured question bank extraction from tabular PDFs
-  - **pdf2image, OpenCV, EasyOCR**: For image preprocessing and handwritten notes recognition
-  - **RapidFuzz**: For OCR correction and academic term recovery
+Instead of relying on heavy third-party AI APIs, the system utilizes an efficient, self-hosted machine learning extraction pipeline built on top of standard Python NLP/OCR libraries.
 
-## Core Features & Architecture
+## ✨ Features
 
-### 1. Authentication and Identity Management
+- **Robust API Layer**: Fully stateless RESTful API powered by Django REST Framework (DRF).
+- **Secure Authentication**: JWT-based authentication using `Argon2/bcrypt` hashing, with robust token lifecycle management.
+- **Wallet & Token System**: Built-in wallet functionality (`UserWallet`, `TokenTransactions`) tracking platform usage and limits.
+- **Smart Workspaces**: Isolated workspaces for managing different subjects, files, and study schedules.
+- **Asynchronous File Ingestion**: Upload validation, SHA-256 duplicate detection, and direct-to-blob storage designed for heavy concurrent usage.
+- **Automated Processing Pipeline**: (In Progress) Converts PDFs, question banks, and handwritten notes to machine-readable objects using OCR and text-processing strategies.
+- **Adaptive Assessments**: (In Progress) Dynamically creates quizzes based on extracted knowledge graphs and student proficiency.
 
-The system uses a stateless authentication model using JSON Web Tokens (JWT), which eliminates the need for server-side session storage and improves horizontal scalability.
+## 🛠️ Tech Stack
 
-- Secure registration and authentication workflows with Argon2/bcrypt hashing.
-- Short-lived Access Tokens (60 minutes) and longer-lived Refresh Tokens (24 hours).
+- **Backend Framework**: Django & Django REST Framework
+- **Database**: PostgreSQL
+- **Caching & Broker**: Redis (for API acceleration and asynchronous task queues)
+- **Infrastructure**: Docker & Docker Compose
+- **Data Science/OCR Toolkit**: Camelot, Pandas, OpenCV, EasyOCR, RapidFuzz, pdf2image *(coming soon in the processing pipeline)*
 
-### 2. File Ingestion and Validation
+---
 
-A robust pipeline designed around asynchronous processing to prevent long-running extraction and OCR operations from blocking API requests.
+## 📂 Project Structure
 
-- **Supported Formats**: Question Bank PDFs, Typed Notes (PDF/TXT), Handwritten Notes (PDF/Image).
-- **Validation**: Strict size limits (60MB) and MIME type whitelists.
-- **Duplicate Detection**: Uses SHA-256 file hashing to prevent uploading the same file multiple times.
-- **Storage**: Direct-to-blob storage for uploaded raw files.
+The Django application is heavily modularized into distinct, decoupled apps:
 
-### 3. Content Extraction Pipeline
+```text
+backend/
+├── authentication/  # JWT auth, custom user models, login/registration logic
+├── common/          # Shared utilities, standardized API responses, base models
+├── config/          # Django core settings and WSGI/ASGI entrypoints
+├── files/           # File ingestion, hashing, and storage logic
+├── processing/      # Asynchronous extraction and NLP/OCR pipelines
+├── quiz/            # Assessment generation and attempts logic
+├── schedule/        # Automated study schedule generation
+├── wallet/          # User token balances and transaction ledgers
+└── workspace/       # Subject/Workspace isolation for users
+```
 
-Converts uploaded educational documents into machine-readable structured content.
+---
 
-- **Question Banks**: Processed as structured documents using table-based extraction (Camelot) and data normalization (Pandas).
-- **Typed Notes**: Direct text extraction (No OCR needed).
-- **Handwritten Notes**: Uses OCR-based extraction requiring preprocessing (OpenCV: Grayscale, Gaussian blur, Otsu thresholding) followed by GPU-accelerated OCR (EasyOCR).
+## 🚀 Getting Started
 
-### 4. Content Processing Pipeline
+Follow these steps to get a development environment running locally.
 
-Transforms extracted content into structured educational data for downstream consumption.
+### Prerequisites
 
-- Generates a unique Workspace Signature based on file hashes and processing pipelines to avoid repeating computationally expensive operations.
-- Outputs structured data: topics, extracted questions, classification results, and educational content normalization.
+- [Docker](https://www.docker.com/) and Docker Compose
+- `make` (for utilizing the Makefile commands)
+- Python 3.10+ (if running the Django server locally outside of Docker)
 
-### 5. Adaptive Quiz Generation & Study Schedules
+### 1. Clone the repository
+```bash
+git clone https://github.com/yourusername/adaptive-exam-platform.git
+cd adaptive-exam-platform
+```
 
-- Generates adaptive quizzes based on uploaded notes and extracted topics.
-- Tracks performance (quiz accuracy, total time) to provide insights and pinpoint weak areas.
-- Automatically generates optimized study schedules and tailored recommendations to streamline exam revision.
+### 2. Configure Environment Variables
+Copy the example environment variables file and configure your local secrets (like database credentials).
+```bash
+cp .env.example .env
+```
+*(Ensure `POSTGRES_DB`, `POSTGRES_USER`, and `POSTGRES_PASSWORD` are set in `.env`)*
 
-## Database Structure
-
-The PostgreSQL database is heavily normalized and indexed (Primary Keys, B-Trees, and Unique Constraints) for performance. Key entities include:
-
-- **User Management**: Users, User Wallets, Token Transactions, Refresh Tokens
-- **Content Management**: Workspaces, Files
-- **Processing Pipelines**: Extraction Jobs, Extraction Artifacts, Processing Jobs
-- **Educational Data**: Topics, Questions, Question Options
-- **Assessment**: Quizzes, Quiz Attempts, Study Schedules
-
-## Caching Strategy (Redis)
-
-Redis is utilized exclusively for API-level request acceleration and is carefully scoped to not interfere with deterministic processing pipelines. Workers rely solely on PostgreSQL and Blob Storage as their authoritative sources of truth.
-
-Cached components include:
-
-- User Session & Wallet Cache
-- Workspace Lists & Metadata (30 minutes TTL)
-- Workspace Files & Topics (15 minutes TTL)
-- Quiz Cache (Questions and Options)
-
-## Setup & Running
-
-A standard `docker-compose.yml` and `Makefile` are provided to set up the PostgreSQL and Redis containers efficiently.
-
-To start the underlying services, run:
-
+### 3. Spin up the Infrastructure
+Use the provided `Makefile` to quickly start the PostgreSQL and Redis containers in the background.
 ```bash
 make up
 ```
 
-*(Refer to the `Makefile` for other helper commands like `make build`, `make logs`, and `make clean`)*
+### 4. Setup the Backend
+Navigate to the backend directory, install requirements, and apply database migrations.
+```bash
+cd backend
+python -m venv venv
+source venv/bin/activate  # On Windows use: venv\Scripts\activate
+pip install -r requirements.txt
+
+# Apply the normalized schema and indexes to PostgreSQL
+python manage.py makemigrations
+python manage.py migrate
+```
+
+### 5. Run the Server
+```bash
+python manage.py runserver
+```
+The API should now be accessible at `http://127.0.0.1:8000/`.
+
+---
+
+## 🧪 Makefile Commands
+
+A handy `Makefile` is included in the root directory. Common commands include:
+
+- `make up`: Starts Postgres and Redis containers.
+- `make down`: Stops and removes the containers.
+- `make logs`: Follows container logs.
+- `make db-shell`: Opens an interactive `psql` shell into the Postgres database.
+- `make clean`: Tears down containers and completely removes data volumes (Use with caution!).
+
+## 🤝 Contributing
+
+Contributions, issues, and feature requests are welcome! Feel free to check the issues page if you want to contribute.
+
+## 📄 License
+
+This project is licensed under the MIT License - see the LICENSE file for details.

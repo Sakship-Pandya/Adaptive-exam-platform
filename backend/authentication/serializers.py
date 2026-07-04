@@ -1,0 +1,71 @@
+from django.contrib.auth import get_user_model
+from django.contrib.auth.password_validation import validate_password
+from rest_framework import serializers
+
+User = get_user_model()
+
+
+class RegisterSerializer(serializers.Serializer):
+    username = serializers.CharField(
+        max_length=150,
+        trim_whitespace=True
+    )
+
+    email = serializers.EmailField()
+
+    password = serializers.CharField(
+        write_only=True,
+        style={"input_type": "password"},
+        trim_whitespace=False,
+    )
+
+    confirm_password = serializers.CharField(
+        write_only=True,
+        style={"input_type": "password"},
+        trim_whitespace=False,
+    )
+
+    def validate_username(self, value):
+        value = value.strip()
+
+        if not value:
+            raise serializers.ValidationError(
+                "Username cannot be empty."
+            )
+
+        if User.objects.filter(username__iexact=value).exists():
+            raise serializers.ValidationError(
+                "Username is already taken."
+            )
+
+        return value
+
+    def validate_email(self, value):
+        value = value.lower()
+
+        if User.objects.filter(email__iexact=value).exists():
+            raise serializers.ValidationError(
+                "Email is already registered."
+            )
+
+        return value
+
+    def validate_password(self, value):
+        # This function would validate the password with the password settings that we have defined inside the settings.py file
+        validate_password(value)
+        return value
+
+    def validate(self, attrs):
+        password = attrs.get("password")
+        confirm_password = attrs.get("confirm_password")
+
+        if password != confirm_password:
+            raise serializers.ValidationError(
+                {
+                    "confirm_password": [
+                        "Passwords do not match."
+                    ]
+                }
+            )
+
+        return attrs

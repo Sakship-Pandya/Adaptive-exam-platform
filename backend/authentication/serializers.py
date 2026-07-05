@@ -26,7 +26,7 @@ class RegisterSerializer(serializers.Serializer):
     )
 
     def validate_username(self, value):
-        value = value.strip()
+        value = value.strip().lower()
 
         if not value:
             raise serializers.ValidationError(
@@ -41,7 +41,7 @@ class RegisterSerializer(serializers.Serializer):
         return value
 
     def validate_email(self, value):
-        value = value.lower()
+        value = value.lower().strip()
 
         if User.objects.filter(email__iexact=value).exists():
             raise serializers.ValidationError(
@@ -69,3 +69,39 @@ class RegisterSerializer(serializers.Serializer):
             )
 
         return attrs
+
+
+class UserSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = User
+        fields = (
+            "id",
+            "username",
+            "email",
+            "account_status",
+            "created_at",
+        )
+        read_only_fields = fields
+
+
+class LoginSerializer(serializers.Serializer):
+    username = serializers.CharField(
+        max_length=150,
+        trim_whitespace=True,
+    )
+
+    password = serializers.CharField(
+        write_only=True,
+        style={"input_type": "password"},
+        trim_whitespace=False,
+    )
+
+    def validate_username(self, value):
+        value = value.strip().lower()
+
+        if not value:
+            raise serializers.ValidationError(
+                "Username cannot be empty."
+            )
+
+        return value

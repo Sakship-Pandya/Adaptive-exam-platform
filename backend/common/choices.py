@@ -18,3 +18,19 @@ class TransactionReason(models.TextChoices):
 class TransactionType(models.TextChoices):
     CREDIT = "CREDIT", "Credit"
     DEBIT = "DEBIT", "Debit"
+
+class WorkspaceStatus(models.TextChoices):
+    EMPTY = "EMPTY", "Empty"
+    READY_FOR_PROCESSING = "READY_FOR_PROCESSING", "Ready for Processing"
+    PROCESSING = "PROCESSING", "Processing"
+    READY = "READY", "Ready"
+    FAILED = "FAILED", "Failed"
+    ARCHIVED = "ARCHIVED", "Archived"
+
+class WorkspaceStatus(models.TextChoices):
+    EMPTY = "EMPTY", "Empty"
+    READY_FOR_PROCESSING = "READY_FOR_PROCESSING", "Ready for Processing"
+    PROCESSING = "PROCESSING", "Processing"
+    READY = "READY", "Ready"
+    FAILED = "FAILED", "Failed"
+    ARCHIVED = "ARCHIVED", "Archived"

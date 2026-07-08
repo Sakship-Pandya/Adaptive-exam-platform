@@ -1,0 +1,683 @@
+/* ============================================================
+   Dashboard.css – home page layout & card styles
+   (navbar styles live in common/Navbar.css)
+   ============================================================ */
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+
+/* ── Reset & root ──────────────────────────────────────────── */
+.db-root * {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+.db-root {
+  font-family: 'Inter', system-ui, sans-serif;
+  min-height: 100vh;
+  background: #f5f4ff;
+  color: #1e1b4b;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ── Shared card shell ─────────────────────────────────────── */
+/* ── Shared card shell ─────────────────────────────────────── */
+.db-card {
+  background: #ffffff;
+  border-radius: 16px;
+  border: 1px solid rgba(124, 58, 237, 0.08);
+  box-shadow: 0 2px 12px rgba(124, 58, 237, 0.06);
+  padding: 20px;
+
+  transform: scale(1);
+  transition:
+    transform 0.22s ease,
+    box-shadow 0.22s ease;
+}
+
+.db-card:hover {
+  transform: scale(1.03);
+  box-shadow: 0 10px 28px rgba(124, 58, 237, 0.12);
+}
+
+/* ═══════════════════════════════════════════════════════════
+   PAGE LAYOUT
+═══════════════════════════════════════════════════════════ */
+.db-main {
+  display: grid;
+  grid-template-columns: 1fr 280px;
+  gap: 20px;
+  padding: 24px 28px;
+  flex: 1;
+  align-items: start;
+}
+
+.db-col-main {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  min-width: 0;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   HERO BANNER
+═══════════════════════════════════════════════════════════ */
+.db-hero-card {
+  background: linear-gradient(135deg, #ede9fe 0%, #ddd6fe 45%, #c4b5fd 100%);
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 28px 36px;
+  position: relative;
+  overflow: hidden;
+  min-height: 148px;
+}
+
+.db-hero-text {
+  z-index: 2;
+  max-width: 480px;
+}
+
+.db-greeting {
+  font-size: 28px;
+  font-weight: 700;
+  color: #1e1b4b;
+  letter-spacing: -0.5px;
+  margin-bottom: 8px;
+}
+
+.db-greeting-sub {
+  font-size: 14px;
+  color: #5b21b6;
+  font-weight: 400;
+  line-height: 1.5;
+}
+
+/* Decorative illustration placeholder */
+.db-hero-illus {
+  position: relative;
+  width: 180px;
+  height: 110px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2;
+  flex-shrink: 0;
+}
+
+.db-hero-glow {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle, rgba(124, 58, 237, 0.22) 0%, transparent 70%);
+  border-radius: 50%;
+}
+
+.db-hero-emoji {
+  font-size: 68px;
+  filter: drop-shadow(0 8px 18px rgba(124, 58, 237, 0.28));
+}
+
+.db-hero-dot {
+  position: absolute;
+  border-radius: 50%;
+  animation: db-float 3s ease-in-out infinite;
+}
+
+.db-hero-dot-1 {
+  width: 10px;
+  height: 10px;
+  background: #7c3aed;
+  top: 8px;
+  right: 20px;
+  opacity: 0.6;
+  animation-delay: 0s;
+}
+
+.db-hero-dot-2 {
+  width: 7px;
+  height: 7px;
+  background: #5b21b6;
+  bottom: 12px;
+  right: 38px;
+  opacity: 0.5;
+  animation-delay: 1s;
+}
+
+.db-hero-dot-3 {
+  width: 5px;
+  height: 5px;
+  background: #a78bfa;
+  top: 24px;
+  left: 12px;
+  opacity: 0.7;
+  animation-delay: 2s;
+}
+
+@keyframes db-float {
+
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+
+  50% {
+    transform: translateY(-7px);
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════
+   STATS STRIP (5 cards)
+═══════════════════════════════════════════════════════════ */
+.db-stats-row {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 14px;
+}
+
+.db-stat-card {
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  cursor: default;
+}
+
+.db-stat-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.db-stat-icon svg {
+  width: 18px;
+  height: 18px;
+}
+
+.db-stat-label {
+  font-size: 11px;
+  font-weight: 500;
+  color: #6b7280;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.db-stat-value {
+  font-size: 22px;
+  font-weight: 700;
+  color: #1e1b4b;
+  margin: 3px 0;
+  line-height: 1;
+}
+
+.db-stat-sub {
+  font-size: 11px;
+  color: #9ca3af;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   BOTTOM ROW – Workspaces + Quizzes
+═══════════════════════════════════════════════════════════ */
+.db-bottom-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+}
+
+.db-list-card {
+  padding: 20px;
+}
+
+/* List header */
+.db-list-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.db-list-header-icon {
+  display: flex;
+  color: #7c3aed;
+}
+
+.db-list-header-icon svg {
+  width: 18px;
+  height: 18px;
+}
+
+.db-list-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: #1e1b4b;
+  flex: 1;
+}
+
+.db-view-all-btn {
+  background: none;
+  border: none;
+  font-family: 'Inter', sans-serif;
+  font-size: 12px;
+  font-weight: 500;
+  color: #7c3aed;
+  cursor: pointer;
+  padding: 2px 0;
+  transition: opacity 0.18s;
+}
+
+.db-view-all-btn:hover {
+  opacity: 0.65;
+}
+
+/* List items */
+.db-list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.db-list-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: background 0.16s ease;
+}
+
+.db-list-item:hover {
+  background: rgba(124, 58, 237, 0.04);
+}
+
+.db-item-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  flex-shrink: 0;
+}
+
+.db-item-icon svg {
+  width: 16px;
+  height: 16px;
+}
+
+/* Quiz icon uses a neutral grey */
+.db-quiz-icon-bg {
+  background: #f3f4f6;
+  color: #6b7280;
+}
+
+.db-item-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.db-item-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: #1e1b4b;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.db-item-meta {
+  font-size: 11px;
+  color: #9ca3af;
+  margin-top: 2px;
+}
+
+/* Progress within workspace row */
+.db-item-progress {
+  min-width: 110px;
+}
+
+.db-progress-label {
+  font-size: 11px;
+  color: #6b7280;
+  margin-bottom: 5px;
+}
+
+.db-progress-label strong {
+  color: #1e1b4b;
+}
+
+.db-progress-track {
+  height: 6px;
+  background: #e5e7eb;
+  border-radius: 99px;
+  overflow: hidden;
+}
+
+.db-progress-fill {
+  height: 100%;
+  border-radius: 99px;
+  transition: width 0.5s ease;
+}
+
+/* Quiz score */
+.db-quiz-result {
+  text-align: right;
+  flex-shrink: 0;
+}
+
+.db-score-pct {
+  display: block;
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.db-score-frac {
+  display: block;
+  font-size: 11px;
+  color: #9ca3af;
+  margin-top: 1px;
+}
+
+/* Empty state */
+.db-empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 24px 12px;
+  color: #9ca3af;
+  list-style: none;
+}
+
+.db-empty-icon {
+  display: flex;
+  color: #c4b5fd;
+}
+
+.db-empty-icon svg {
+  width: 32px;
+  height: 32px;
+}
+
+.db-empty-msg {
+  font-size: 12px;
+  text-align: center;
+  max-width: 200px;
+  line-height: 1.5;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   SIDEBAR
+═══════════════════════════════════════════════════════════ */
+.db-sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.db-sidebar-card {
+  padding: 18px;
+}
+
+.db-sidebar-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #1e1b4b;
+}
+
+/* ── Study Streak ───────────────────────────── */
+.db-streak-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+
+.db-flame {
+  display: flex;
+  color: #f97316;
+}
+
+.db-flame svg {
+  width: 18px;
+  height: 18px;
+}
+
+.db-streak-count {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  margin-bottom: 4px;
+}
+
+.db-streak-num {
+  font-size: 40px;
+  font-weight: 800;
+  color: #1e1b4b;
+  line-height: 1;
+}
+
+.db-streak-unit {
+  font-size: 16px;
+  font-weight: 500;
+  color: #6b7280;
+}
+
+.db-streak-tagline {
+  font-size: 12px;
+  color: #6b7280;
+  margin-bottom: 14px;
+}
+
+.db-streak-days {
+  display: flex;
+  gap: 6px;
+  justify-content: space-between;
+}
+
+.db-streak-day {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.db-day-lbl {
+  font-size: 10px;
+  font-weight: 500;
+  color: #9ca3af;
+}
+
+.db-day-dot {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: #e5e7eb;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s;
+}
+
+.db-day-dot.done {
+  background: linear-gradient(135deg, #7c3aed, #5b21b6);
+}
+
+.db-day-dot svg {
+  width: 12px;
+  height: 12px;
+}
+
+/* ── Upcoming Revision ──────────────────────── */
+.db-sidebar-hdr {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 14px;
+}
+
+.db-revision-list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 11px;
+  margin-bottom: 14px;
+}
+
+.db-revision-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 13px;
+}
+
+.db-revision-subject {
+  color: #374151;
+  font-weight: 500;
+}
+
+.db-revision-timing {
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.db-revision-empty {
+  padding: 12px 0;
+}
+
+.db-study-plan-btn {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: rgba(124, 58, 237, 0.06);
+  border: 1px solid rgba(124, 58, 237, 0.15);
+  border-radius: 10px;
+  padding: 8px 14px;
+  font-family: 'Inter', sans-serif;
+  font-size: 13px;
+  font-weight: 500;
+  color: #7c3aed;
+  cursor: pointer;
+  transition: background 0.18s;
+}
+
+.db-study-plan-btn:hover {
+  background: rgba(124, 58, 237, 0.11);
+}
+
+.db-btn-chevron {
+  display: flex;
+}
+
+.db-btn-chevron svg {
+  width: 14px;
+  height: 14px;
+}
+
+/* ── This Week Overview ─────────────────────── */
+.db-week-chart-wrap {
+  margin: 12px 0 6px;
+}
+
+.db-sparkline {
+  width: 100%;
+  height: 70px;
+  display: block;
+}
+
+.db-week-chart-image {
+  width: 100%;
+  height: 150px;
+  object-fit: contain;
+  display: block;
+  user-select: none;
+}
+
+.db-week-x-labels {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 4px;
+}
+
+.db-week-x-labels span {
+  font-size: 10px;
+  color: #9ca3af;
+}
+
+.db-week-stats {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(124, 58, 237, 0.08);
+}
+
+.db-week-stat {
+  text-align: center;
+}
+
+.db-week-val {
+  font-size: 18px;
+  font-weight: 700;
+  color: #1e1b4b;
+}
+
+.db-week-lbl {
+  font-size: 11px;
+  color: #9ca3af;
+  margin-top: 2px;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   RESPONSIVE
+═══════════════════════════════════════════════════════════ */
+@media (max-width: 1100px) {
+  .db-stats-row {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+@media (max-width: 900px) {
+  .db-main {
+    grid-template-columns: 1fr;
+  }
+
+  .db-sidebar {
+    display: none;
+  }
+
+  .db-stats-row {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 600px) {
+  .db-bottom-row {
+    grid-template-columns: 1fr;
+  }
+
+  .db-stats-row {
+    grid-template-columns: 1fr;
+  }
+
+  .db-main {
+    padding: 16px;
+  }
+
+  .db-hero-card {
+    padding: 20px;
+  }
+
+  .db-hero-illus {
+    display: none;
+  }
+}

@@ -62,237 +62,6 @@
   transition: var(--auth-transition);
 }
 
-/* LEFT SIDE - BRANDING & PREVIEW SIDEBAR */
-.auth-sidebar {
-  flex: 1.1;
-  background: var(--auth-sidebar-bg);
-  border-right: 1px solid var(--auth-border);
-  padding: 40px;
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  position: relative;
-  overflow: hidden;
-}
-
-.auth-sidebar::before {
-  content: '';
-  position: absolute;
-  top: -10%;
-  right: -10%;
-  width: 300px;
-  height: 300px;
-  border-radius: 50%;
-  background: radial-gradient(circle, rgba(99, 102, 241, 0.08) 0%, rgba(255, 255, 255, 0) 70%);
-  z-index: 1;
-  pointer-events: none;
-}
-
-.auth-logo-section {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  z-index: 2;
-}
-
-.auth-logo-icon {
-  background: var(--auth-primary);
-  color: white;
-  width: 40px;
-  height: 40px;
-  border-radius: 10px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-weight: 800;
-  font-size: 20px;
-  box-shadow: 0 4px 10px rgba(79, 70, 229, 0.3);
-}
-
-.auth-logo-text {
-  font-size: 19px;
-  font-weight: 700;
-  color: var(--auth-text-main);
-  letter-spacing: -0.5px;
-}
-
-/* Illustration banner design inspired by the desk setup greeting card */
-.auth-illustration-container {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  margin: 30px 0;
-  z-index: 2;
-  position: relative;
-}
-
-.auth-illustration-svg {
-  max-width: 100%;
-  height: auto;
-  filter: drop-shadow(0 10px 15px rgba(0, 0, 0, 0.03));
-}
-
-/* Floating Metrics widget section matches original dashboard widgets */
-.auth-preview-widgets {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-  z-index: 2;
-}
-
-.auth-widget-row {
-  display: flex;
-  gap: 16px;
-}
-
-.auth-widget {
-  background: var(--auth-card-bg);
-  border: 1px solid var(--auth-border);
-  border-radius: var(--auth-radius-md);
-  padding: 16px;
-  box-shadow: var(--auth-shadow-widget);
-  flex: 1;
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  transition: var(--auth-transition);
-}
-
-.auth-widget:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 8px 24px -4px rgba(79, 70, 229, 0.08);
-  border-color: var(--auth-primary-light);
-}
-
-.auth-widget-icon {
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.auth-widget-icon.purple {
-  background: var(--auth-purple-light);
-  color: var(--auth-purple);
-}
-
-.auth-widget-icon.green {
-  background: var(--auth-green-light);
-  color: var(--auth-green);
-}
-
-.auth-widget-icon.orange {
-  background: var(--auth-orange-light);
-  color: var(--auth-orange);
-}
-
-.auth-widget-details {
-  display: flex;
-  flex-direction: column;
-}
-
-.auth-widget-label {
-  font-size: 11px;
-  color: var(--auth-text-muted);
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-}
-
-.auth-widget-value {
-  font-size: 16px;
-  font-weight: 700;
-  color: var(--auth-text-main);
-  margin-top: 2px;
-}
-
-.auth-widget-trend {
-  font-size: 10px;
-  font-weight: 600;
-  color: var(--auth-green);
-  margin-top: 1px;
-}
-
-/* Streak calendar element matching dashboard calendar */
-.auth-widget.streak-widget {
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 8px;
-}
-
-.auth-streak-header {
-  display: flex;
-  justify-content: space-between;
-  width: 100%;
-  align-items: center;
-}
-
-.auth-streak-title {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 13px;
-  font-weight: 700;
-  color: var(--auth-text-main);
-}
-
-.auth-streak-days {
-  font-size: 14px;
-  font-weight: 700;
-  color: var(--auth-primary);
-  background: var(--auth-primary-light);
-  padding: 2px 8px;
-  border-radius: 99px;
-}
-
-.auth-streak-calendar {
-  display: flex;
-  justify-content: space-between;
-  width: 100%;
-  gap: 4px;
-  margin-top: 4px;
-}
-
-.auth-calendar-day {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 4px;
-  flex: 1;
-}
-
-.auth-day-letter {
-  font-size: 9px;
-  font-weight: 700;
-  color: var(--auth-text-muted);
-}
-
-.auth-day-dot {
-  width: 18px;
-  height: 18px;
-  border-radius: 50%;
-  border: 1px solid var(--auth-border);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 9px;
-  transition: var(--auth-transition);
-}
-
-.auth-day-dot.active {
-  background: var(--auth-primary);
-  border-color: var(--auth-primary);
-  color: white;
-}
-
-.auth-day-dot.current-empty {
-  border-color: var(--auth-primary);
-  background: transparent;
-}
-
-
 /* RIGHT SIDE - FORM CONTAINER */
 .auth-form-container {
   padding: 40px;
@@ -579,7 +348,7 @@
   animation: spin 0.8s linear infinite;
 }
 
-/* Mock Logged-in Splash Screen */
+/* Success splash screen */
 .auth-success-screen {
   text-align: center;
   padding: 40px;
@@ -641,58 +410,40 @@
 }
 
 @keyframes slideDown {
-  from {
-    opacity: 0;
-    transform: translateY(-8px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+  from { opacity: 0; transform: translateY(-8px); }
+  to   { opacity: 1; transform: translateY(0); }
 }
 
 @keyframes fadeIn {
   from { opacity: 0; }
-  to { opacity: 1; }
+  to   { opacity: 1; }
 }
 
 @keyframes scaleUp {
-  from {
-    opacity: 0;
-    transform: scale(0.6);
-  }
-  to {
-    opacity: 1;
-    transform: scale(1);
-  }
+  from { opacity: 0; transform: scale(0.6); }
+  to   { opacity: 1; transform: scale(1); }
 }
 
 @keyframes fadeInText {
-  from {
-    opacity: 0;
-    transform: translateY(6px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
 }
 
-/* RESPONSIVE DESIGN */
+/* Responsive */
 @media (max-width: 520px) {
   .auth-page {
     padding: 12px;
   }
-  
+
   .auth-wrapper {
     width: 100%;
     border-radius: var(--auth-radius-md);
   }
-  
+
   .auth-form-container {
     padding: 24px;
   }
-  
+
   .auth-form-title {
     font-size: 22px;
   }

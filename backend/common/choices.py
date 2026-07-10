@@ -45,6 +45,7 @@ class UploadFileStatus(models.TextChoices):
     UPLOADED = "UPLOADED", "Uploaded"
     VERIFIED = "VERIFIED", "Verified"
     FAILED = "FAILED", "Failed"
+    REGISTERED = "REGISTERED", "Registered"
 
 
 class FileStatus(models.TextChoices):

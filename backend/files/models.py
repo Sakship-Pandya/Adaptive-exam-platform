@@ -222,7 +222,6 @@ class File(BaseModel):
 
     file_hash = models.CharField(
         max_length=64,
-        unique=True,
     )
 
     status = models.CharField(

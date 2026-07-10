@@ -13,6 +13,51 @@ class FileException(APIException):
 
 
 # ==========================================================
+# Workspace Validation Exceptions
+# ==========================================================
+
+
+class WorkspaceNotFoundException(FileException):
+    """
+    Raised when the requested workspace does not exist.
+    """
+
+    status_code = status.HTTP_404_NOT_FOUND
+    default_detail = "The requested workspace could not be found."
+    default_code = "workspace_not_found"
+
+
+class WorkspacePermissionException(FileException):
+    """
+    Raised when the user does not have permission to access the workspace.
+    """
+
+    status_code = status.HTTP_403_FORBIDDEN
+    default_detail = "You do not have permission to access this workspace."
+    default_code = "workspace_permission_denied"
+
+
+class WorkspaceArchivedException(FileException):
+    """
+    Raised when attempting to upload files to an archived workspace.
+    """
+
+    status_code = status.HTTP_409_CONFLICT
+    default_detail = "The workspace is archived and cannot accept new files."
+    default_code = "workspace_archived"
+
+
+class WorkspaceProcessingInProgressException(FileException):
+    """
+    Raised when attempting to upload files to a workspace that is currently processing.
+    """
+
+    status_code = status.HTTP_409_CONFLICT
+    default_detail = "The workspace is currently processing and cannot accept new files."
+    default_code = "workspace_processing_in_progress"
+
+
+# ==========================================================
 # Upload Session Exceptions
 # ==========================================================
 
@@ -205,3 +250,14 @@ class DuplicateFileHashException(FileException):
     status_code = status.HTTP_409_CONFLICT
     default_detail = "A file with the same content already exists."
     default_code = "duplicate_file_hash"
+
+class VerifiedUploadSessionFileNotFoundException(FileException):
+    """
+    Raised when an upload session contains no verified files.
+    """
+
+    status_code = status.HTTP_404_NOT_FOUND
+    default_detail = (
+        "The upload session contains no verified files."
+    )
+    default_code = "verified_upload_session_files_not_found"

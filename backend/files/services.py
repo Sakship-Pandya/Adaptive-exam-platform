@@ -1,53 +1,64 @@
-from django.core.exceptions import ObjectDoesNotExist
+from common.choices import WorkspaceStatus
+import hashlib
+import logging
 from datetime import timedelta
 
 from django.conf import settings
+from django.core.exceptions import ObjectDoesNotExist
 from django.db import DatabaseError, IntegrityError, transaction
 from django.utils import timezone
 
-from common.choices import UploadSessionStatus, UploadFileStatus
+from common.choices import UploadFileStatus, UploadSessionStatus, FileStatus
 from files.exceptions import (
+    DuplicateFileHashException,
     FileException,
+    FileProcessingException,
     UploadedObjectContentTypeMismatchException,
     UploadedObjectIntegrityException,
     UploadedObjectNotFoundException,
     UploadedObjectSizeMismatchException,
-    UploadSessionCleanupException,
+    UploadSessionCompletedException,
     UploadSessionCompletionException,
     UploadSessionCreationException,
-    UploadSessionVerificationException,
-    UploadSessionNotFoundException,
     UploadSessionExpiredException,
-    UploadSessionCompletedException,
     UploadSessionFailedException,
+    UploadSessionNotFoundException,
     UploadSessionStateException,
+    UploadSessionVerificationException,
+    VerifiedUploadSessionFileNotFoundException,
+    WorkspaceArchivedException,
+    WorkspaceNotFoundException,
+    WorkspacePermissionException,
+    WorkspaceProcessingInProgressException,
 )
-
-from files.models import UploadSession, UploadSessionFile
+from files.models import File, UploadSession, UploadSessionFile
 from storage.provider import MinIOProvider
 from storage.utils import generate_storage_key
+
+logger = logging.getLogger(__name__)
 
 
 class FilesService:
     """
-    Service responsible for orchestrating the upload workflow.
+    Service responsible for orchestrating the entire upload workflow.
 
     This service coordinates:
         - Upload session creation.
         - Temporary upload file records.
         - Storage key generation.
         - Pre-signed URL generation.
-
-    It does NOT:
-        - Verify uploaded files.
-        - Create permanent File records.
-        - Calculate file hashes.
-        - Delete failed uploads.
-
-    Those operations belong to the upload finalization stage.
+        - Object verification against MinIO.
+        - SHA-256 hash calculation.
+        - Duplicate file detection.
+        - Permanent File record creation.
+        - Upload session completion.
     """
 
     provider = MinIOProvider()
+
+    # ------------------------------------------------------------------
+    # Public API
+    # ------------------------------------------------------------------
 
     @staticmethod
     @transaction.atomic
@@ -74,6 +85,10 @@ class FilesService:
             Dictionary containing upload session information and
             pre-signed upload URLs.
         """
+        FilesService._validate_upload_workspace(
+            workspace=workspace,
+            user=user,
+        )
 
         try:
             expected_total_size = sum(
@@ -92,48 +107,52 @@ class FilesService:
                 ),
             )
 
-            upload_files = []
+            prepared_files = []
 
             for file in files:
-
                 storage_key = generate_storage_key(
                     workspace_id=workspace.id,
                     upload_session_id=upload_session.id,
                     file_role=file["role"],
                     filename=file["filename"],
                 )
-
-                upload_session_file = UploadSessionFile.objects.create(
-                    upload_session=upload_session,
-                    original_filename=file["filename"],
-                    storage_key=storage_key,
-                    role=file["role"],
-                    status=UploadFileStatus.PENDING,
-                    expected_file_size=file["size"],
-                    expected_content_type=file["content_type"],
-                )
-
                 upload_url = FilesService.provider.generate_upload_url(
                     storage_key=storage_key,
                     content_type=file["content_type"],
+                    expires_in=settings.UPLOAD_SESSION_EXPIRY_SECONDS
                 )
+                prepared_files.append((
+                    UploadSessionFile(
+                        upload_session=upload_session,
+                        original_filename=file["filename"],
+                        storage_key=storage_key,
+                        role=file["role"],
+                        status=UploadFileStatus.PENDING,
+                        expected_file_size=file["size"],
+                        expected_content_type=file["content_type"],
+                    ),
+                    upload_url,
+                ))
 
-                upload_files.append(
-                    {
-                        "upload_session_file_id": upload_session_file.id,
-                        "original_filename": file["filename"],
-                        "role": file["role"],
-                        "storage_key": storage_key,
-                        "content_type": file["content_type"],
-                        "expected_file_size": file["size"],
-                        "upload_url": upload_url,
-                    }
-                )
+            UploadSessionFile.objects.bulk_create(
+                [session_file for session_file, _ in prepared_files]
+            )
 
             return {
                 "upload_session_id": upload_session.id,
                 "expires_at": upload_session.expires_at,
-                "files": upload_files,
+                "files": [
+                    {
+                        "upload_session_file_id": session_file.id,
+                        "original_filename": session_file.original_filename,
+                        "role": session_file.role,
+                        "storage_key": session_file.storage_key,
+                        "content_type": session_file.expected_content_type,
+                        "expected_file_size": session_file.expected_file_size,
+                        "upload_url": upload_url,
+                    }
+                    for session_file, upload_url in prepared_files
+                ],
             }
 
         except IntegrityError as exc:
@@ -152,6 +171,42 @@ class FilesService:
             ) from exc
 
     @staticmethod
+    def _validate_upload_workspace(
+        *,
+        workspace,
+        user,
+    ) -> None:
+        """
+        Validate that the workspace can accept uploaded files.
+
+        Raises:
+            WorkspaceNotFoundException:
+                If the workspace does not exist.
+
+            WorkspacePermissionException:
+                If the user does not own the workspace.
+
+            WorkspaceArchivedException:
+                If the workspace has been archived.
+
+            WorkspaceProcessingInProgressException:
+                If the workspace is currently being processed.
+        """
+
+        if workspace is None:
+            raise WorkspaceNotFoundException()
+
+        if workspace.owner_id != user.id:
+            raise WorkspacePermissionException()
+
+        if workspace.status == WorkspaceStatus.ARCHIVED:
+            raise WorkspaceArchivedException()
+
+        if workspace.status == WorkspaceStatus.PROCESSING:
+            raise WorkspaceProcessingInProgressException()
+
+
+    @staticmethod
     @transaction.atomic
     def finalize_upload(upload_session_id, user):
         """
@@ -160,25 +215,29 @@ class FilesService:
         Workflow
         --------
         1. Retrieve and lock the upload session.
-        2. Validate the upload session.
-        3. Verify every uploaded object.
-        4. Mark the upload session as completed.
-        5. Return a summary of the completed upload session.
+        2. Validate that the session is eligible for finalization.
+        3. Mark the session as VERIFYING.
+        4. Verify every uploaded object against MinIO.
+        5. Register all verified objects as permanent File records.
+        6. Mark the session as COMPLETED.
+        7. Return a summary.
 
-        Any verification failure causes the upload session to be rolled back.
+        Any failure during steps 4–5 causes the session to be rolled back
+        to FAILED and all uploaded objects to be deleted from storage.
         """
 
         upload_session = FilesService._get_upload_session(
             upload_session_id=upload_session_id,
             user=user,
         )
+
         FilesService._verify_upload_session(
             upload_session=upload_session,
         )
 
         try:
             upload_session.status = UploadSessionStatus.VERIFYING
-            upload_session.save(update_fields=["status"])
+            upload_session.save(update_fields=["status", "updated_at"])
         except DatabaseError as exc:
             raise UploadSessionStateException(
                 detail="Failed to update upload session status to VERIFYING."
@@ -188,6 +247,9 @@ class FilesService:
             FilesService._verify_uploaded_objects(
                 upload_session=upload_session,
             )
+            FilesService.register_verified_files(
+                upload_session=upload_session,
+            )
 
         except (
             UploadSessionVerificationException,
@@ -195,19 +257,21 @@ class FilesService:
             UploadedObjectSizeMismatchException,
             UploadedObjectContentTypeMismatchException,
             UploadedObjectIntegrityException,
-        ) as verification_exception:
+            VerifiedUploadSessionFileNotFoundException,
+            DuplicateFileHashException,
+            FileProcessingException,
+        ) as processing_exception:
 
             try:
                 FilesService._fail_upload_session(
                     upload_session=upload_session,
-                    failure_reason=str(verification_exception),
+                    failure_reason=str(processing_exception),
                 )
-
             except (UploadSessionStateException, DatabaseError):
                 # Log here: session failure cleanup itself failed.
                 pass
 
-            raise verification_exception
+            raise processing_exception
 
         FilesService._complete_upload_session(
             upload_session=upload_session,
@@ -221,6 +285,105 @@ class FilesService:
             "verified_file_count": upload_session.uploaded_file_count,
             "completed_at": upload_session.completed_at,
         }
+
+    @staticmethod
+    @transaction.atomic
+    def register_verified_files(upload_session) -> list:
+        """
+        Register all verified upload session files as permanent File records.
+
+        Workflow
+        --------
+        Pass 1 — Preparation
+            Calculates the SHA-256 hash for each uploaded file and prepares a
+            unique registration batch by ignoring duplicate files within the
+            current upload session.
+
+        Pass 2 — Persistence
+            For each prepared file:
+
+                If a matching file already exists in the workspace:
+                    1. Reactivate the existing File record.
+
+                Otherwise:
+                    1. Create a new permanent File record.
+
+                Finally:
+                    2. Mark the UploadSessionFile as REGISTERED.
+
+        Returns
+        -------
+        list[File]
+            List of active File records associated with the workspace.
+
+        Raises
+        ------
+        VerifiedUploadSessionFileNotFoundException
+        FileProcessingException
+        """
+
+        upload_session_files = FilesService._get_verified_upload_session_files(
+            upload_session=upload_session,
+        )
+
+        # ------------------------------------------------------------------
+        # Pass 1: Prepare unique files for registration
+        # ------------------------------------------------------------------
+
+        prepared_files = FilesService._prepare_file_registration(
+            upload_session_files=upload_session_files,
+        )
+
+        # ------------------------------------------------------------------
+        # Pass 2: Reactivate existing files or create new permanent files
+        # ------------------------------------------------------------------
+
+        registered_files: list[File] = []
+
+        for upload_session_file, file_hash in prepared_files:
+
+            existing_file = FilesService._get_existing_workspace_file(
+                workspace=upload_session.workspace,
+                file_hash=file_hash,
+            )
+
+            if existing_file:
+                FilesService._activate_existing_file(
+                    file=existing_file,
+                )
+                # Delete the redundant object from storage. The permanent
+                # File record points to the original upload's storage key,
+                # so the new copy is safe to remove.
+                try:
+                    FilesService.provider.delete_object(
+                        storage_key=upload_session_file.storage_key,
+                    )
+                except Exception:
+                    logger.exception(
+                        "Failed to delete redundant object %s from storage "
+                        "after reactivating existing file %s.",
+                        upload_session_file.storage_key,
+                        existing_file.id,
+                    )
+                permanent_file = existing_file
+
+            else:
+                permanent_file = FilesService._create_permanent_file(
+                    upload_session_file=upload_session_file,
+                    file_hash=file_hash,
+                )
+
+            FilesService._mark_upload_session_file_registered(
+                upload_session_file=upload_session_file,
+            )
+
+            registered_files.append(permanent_file)
+
+        return registered_files
+
+    # ------------------------------------------------------------------
+    # Private helpers — Session retrieval & validation
+    # ------------------------------------------------------------------
 
     @staticmethod
     def _get_upload_session(upload_session_id, user):
@@ -260,7 +423,7 @@ class FilesService:
         - Upload session has not expired.
         - Upload session is not already completed.
         - Upload session is not already failed.
-        - Upload session is in the expected state.
+        - Upload session is in the PENDING state.
 
         Raises
         ------
@@ -269,6 +432,7 @@ class FilesService:
         UploadSessionFailedException
         UploadSessionStateException
         """
+
         if upload_session.expires_at <= timezone.now():
             raise UploadSessionExpiredException()
 
@@ -280,6 +444,10 @@ class FilesService:
 
         if upload_session.status != UploadSessionStatus.PENDING:
             raise UploadSessionStateException()
+
+    # ------------------------------------------------------------------
+    # Private helpers — Object verification
+    # ------------------------------------------------------------------
 
     @staticmethod
     def _verify_uploaded_objects(upload_session):
@@ -299,6 +467,10 @@ class FilesService:
         Raises
         ------
         UploadSessionVerificationException
+        UploadedObjectNotFoundException
+        UploadedObjectSizeMismatchException
+        UploadedObjectContentTypeMismatchException
+        UploadedObjectIntegrityException
         """
 
         upload_session_files = FilesService._get_upload_session_files(
@@ -408,6 +580,7 @@ class FilesService:
             raise UploadSessionVerificationException(
                 detail="The upload session does not contain any files."
             )
+
         return upload_session_files
 
     @staticmethod
@@ -422,15 +595,20 @@ class FilesService:
 
         metadata : dict
             Normalized object metadata returned by the storage provider.
+
+        Raises
+        ------
+        UploadSessionVerificationException
+            If the metadata cannot be persisted to the database.
         """
 
         upload_session_file.uploaded_file_size = metadata["content_length"]
         upload_session_file.uploaded_content_type = metadata["content_type"]
         upload_session_file.etag = metadata["etag"]
         upload_session_file.object_last_modified = metadata["last_modified"]
-
         upload_session_file.verified_at = timezone.now()
         upload_session_file.status = UploadFileStatus.VERIFIED
+
         try:
             upload_session_file.save(
                 update_fields=[
@@ -447,6 +625,10 @@ class FilesService:
             raise UploadSessionVerificationException(
                 detail="Failed to persist verified metadata to the database."
             ) from exc
+
+    # ------------------------------------------------------------------
+    # Private helpers — Session failure / rollback
+    # ------------------------------------------------------------------
 
     @staticmethod
     def _fail_upload_session(upload_session, failure_reason):
@@ -470,9 +652,10 @@ class FilesService:
                     storage_key=session_file.storage_key,
                 )
             except Exception:
-                # Storage deletion failure is non-fatal during rollback.
-                # The object may not have been uploaded yet.
-                pass
+                logger.exception(
+                    f"Failed to delete object {session_file.storage_key} "
+                    f"from storage during rollback of upload session {upload_session.id}."
+                )
 
         FilesService._mark_upload_session_files_failed(
             upload_session=upload_session,
@@ -486,21 +669,16 @@ class FilesService:
     @staticmethod
     def _mark_upload_session_files_failed(upload_session, failure_reason):
         """
-        Mark every non-verified UploadSessionFile in the upload session as failed.
+        Mark every non-registered UploadSessionFile in the upload session as
+        failed.
 
-        Files that have already been verified are left unchanged.
-        Files that do not already have a failure reason are updated with the
-        provided failure_reason.
+        Files that have already been registered are left unchanged.
         """
 
         (
             UploadSessionFile.objects
-            .filter(
-                upload_session=upload_session,
-            )
-            .exclude(
-                status=UploadFileStatus.VERIFIED,
-            )
+            .filter(upload_session=upload_session)
+            .exclude(status=UploadFileStatus.REGISTERED)
             .update(
                 status=UploadFileStatus.FAILED,
                 failure_reason=failure_reason,
@@ -515,6 +693,7 @@ class FilesService:
         Updates
         -------
         - status
+        - updated_at
         """
 
         try:
@@ -541,7 +720,7 @@ class FilesService:
         -------
         - status
         - completed_at
-        - uploaded_file_count
+        - uploaded_file_count (counted from REGISTERED UploadSessionFile records)
         """
 
         try:
@@ -550,7 +729,7 @@ class FilesService:
             upload_session.uploaded_file_count = (
                 UploadSessionFile.objects.filter(
                     upload_session=upload_session,
-                    status=UploadFileStatus.VERIFIED,
+                    status=UploadFileStatus.REGISTERED,
                 ).count()
             )
 
@@ -566,4 +745,263 @@ class FilesService:
         except DatabaseError as exc:
             raise UploadSessionCompletionException(
                 "Failed to complete the upload session."
+            ) from exc
+
+    # ------------------------------------------------------------------
+    # Private helpers — Permanent file registration
+    # ------------------------------------------------------------------
+
+    @staticmethod
+    def _get_verified_upload_session_files(upload_session):
+        """
+        Retrieve all verified UploadSessionFile records belonging to an upload
+        session.
+
+        Raises
+        ------
+        VerifiedUploadSessionFileNotFoundException
+            If the upload session contains no files in the VERIFIED state.
+        """
+
+        upload_session_files = (
+            UploadSessionFile.objects
+            .filter(
+                upload_session=upload_session,
+                status=UploadFileStatus.VERIFIED,
+            )
+            .order_by("created_at")
+        )
+
+        if not upload_session_files.exists():
+            raise VerifiedUploadSessionFileNotFoundException()
+
+        return upload_session_files
+
+    @staticmethod
+    def _prepare_file_registration(upload_session_files) -> list:
+        """
+        Prepare unique files for registration by calculating their SHA-256 hashes.
+
+        Duplicate files within the current upload batch are ignored so that only
+        one instance of each unique file proceeds to the registration phase.
+
+        Returns
+        -------
+        list
+            List of tuples containing:
+
+            (
+                UploadSessionFile,
+                file_hash,
+            )
+        """
+
+        prepared_files = []
+        seen_hashes = set()
+
+        for upload_session_file in upload_session_files:
+            file_hash = FilesService._calculate_file_hash(
+                upload_session_file=upload_session_file,
+            )
+
+            if file_hash in seen_hashes:
+                # Delete the duplicate object from storage to prevent
+                # an orphaned object leak.
+                try:
+                    FilesService.provider.delete_object(
+                        storage_key=upload_session_file.storage_key,
+                    )
+                except Exception:
+                    logger.exception(
+                        "Failed to delete intra-batch duplicate object %s "
+                        "from storage.",
+                        upload_session_file.storage_key,
+                    )
+                # Mark the session file so it is not left in VERIFIED state.
+                upload_session_file.status = UploadFileStatus.FAILED
+                upload_session_file.failure_reason = (
+                    "Duplicate file detected within the same upload batch."
+                )
+                upload_session_file.save(
+                    update_fields=["status", "failure_reason", "updated_at"]
+                )
+                continue
+
+            seen_hashes.add(file_hash)
+
+            prepared_files.append(
+                (
+                    upload_session_file,
+                    file_hash,
+                )
+            )
+
+        return prepared_files
+
+    @staticmethod
+    def _calculate_file_hash(upload_session_file) -> str:
+        """
+        Calculate the SHA-256 hash of an uploaded object stored in MinIO.
+
+        Streams the object in 1 MB chunks to avoid loading the entire file
+        into memory. Uses the class-level provider instance.
+
+        Parameters
+        ----------
+        upload_session_file : UploadSessionFile
+
+        Returns
+        -------
+        str
+            SHA-256 hexadecimal digest.
+
+        Raises
+        ------
+        FileProcessingException
+            If the file cannot be retrieved or hashed.
+        """
+
+        response = None
+        try:
+            response = FilesService.provider.get_object(
+                storage_key=upload_session_file.storage_key,
+            )
+
+            hasher = hashlib.sha256()
+
+            for chunk in iter(lambda: response.read(1024 * 1024), b""):
+                hasher.update(chunk)
+
+            return hasher.hexdigest()
+
+        except Exception as exc:
+            raise FileProcessingException(
+                "Failed to calculate the SHA-256 hash of the uploaded file."
+            ) from exc
+        finally:
+            if response is not None:
+                response.close()
+
+    @staticmethod
+    def _get_existing_workspace_file(
+        *,
+        workspace,
+        file_hash: str,
+    ) -> File | None:
+        """
+        Retrieve an existing file with the given hash that already belongs to the
+        specified workspace.
+
+        Parameters
+        ----------
+        workspace
+            Workspace that will own the file.
+
+        file_hash : str
+            SHA-256 hash of the uploaded file.
+
+        Returns
+        -------
+        File | None
+            The existing file if found, otherwise None.
+        """
+
+        return File.objects.filter(
+            workspace=workspace,
+            file_hash=file_hash,
+        ).first()
+
+    @staticmethod
+    def _activate_existing_file(
+        *,
+        file: File,
+    ) -> None:
+        """
+        Reactivate an existing workspace file.
+
+        Parameters
+        ----------
+        file : File
+            Existing permanent file belonging to the workspace.
+        """
+
+        if file.status != FileStatus.ACTIVE:
+            file.status = FileStatus.ACTIVE
+            file.save(
+                update_fields=[
+                    "status",
+                    "updated_at",
+                ]
+            )
+
+    @staticmethod
+    def _create_permanent_file(upload_session_file, file_hash: str):
+        """
+        Create a permanent File record from a verified UploadSessionFile.
+
+        Parameters
+        ----------
+        upload_session_file : UploadSessionFile
+
+        file_hash : str
+            SHA-256 hexadecimal digest of the uploaded object.
+
+        Returns
+        -------
+        File
+
+        Raises
+        ------
+        FileProcessingException
+            If the permanent File record cannot be created.
+        """
+
+        try:
+            return File.objects.create(
+                workspace=upload_session_file.upload_session.workspace,
+                uploaded_by=upload_session_file.upload_session.user,
+                upload_session=upload_session_file.upload_session,
+                original_filename=upload_session_file.original_filename,
+                storage_key=upload_session_file.storage_key,
+                role=upload_session_file.role,
+                mime_type=upload_session_file.uploaded_content_type,
+                file_size=upload_session_file.uploaded_file_size,
+                file_hash=file_hash,
+            )
+
+        except IntegrityError as exc:
+            raise DuplicateFileHashException() from exc
+        except DatabaseError as exc:
+            raise FileProcessingException(
+                "Failed to create the permanent file record."
+            ) from exc
+
+    @staticmethod
+    def _mark_upload_session_file_registered(upload_session_file) -> None:
+        """
+        Mark an UploadSessionFile as successfully registered.
+
+        Parameters
+        ----------
+        upload_session_file : UploadSessionFile
+
+        Raises
+        ------
+        FileProcessingException
+            If the status update cannot be persisted.
+        """
+
+        try:
+            upload_session_file.status = UploadFileStatus.REGISTERED
+
+            upload_session_file.save(
+                update_fields=[
+                    "status",
+                    "updated_at",
+                ]
+            )
+
+        except DatabaseError as exc:
+            raise FileProcessingException(
+                "Failed to mark the upload session file as registered."
             ) from exc

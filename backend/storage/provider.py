@@ -218,6 +218,48 @@ class MinIOProvider:
                 detail="Failed to retrieve object metadata."
             ) from exc
 
+    def get_object(
+        self,
+        storage_key: str,
+    ):
+        """
+        Retrieve an object from the storage bucket as a streaming response.
+
+        The caller is responsible for calling `.close()` and
+        `.release_conn()` on the returned response body to avoid
+        connection leaks.
+
+        Args:
+            storage_key:
+                Object key inside the bucket.
+
+        Returns:
+            The raw streaming body of the S3 object response.
+
+        Raises:
+            ObjectNotFoundException
+            StorageException
+        """
+
+        try:
+            response = self._client.get_object(
+                Bucket=self.bucket_name,
+                Key=storage_key,
+            )
+            return response["Body"]
+
+        except ClientError as exc:
+            error_code = exc.response.get("Error", {}).get("Code")
+
+            if error_code in ("404", "NoSuchKey", "NotFound"):
+                raise ObjectNotFoundException(
+                    detail="The requested object does not exist."
+                ) from exc
+
+            raise StorageException(
+                detail="Failed to retrieve object from storage."
+            ) from exc
+
     def delete_object(
         self,
         storage_key: str,

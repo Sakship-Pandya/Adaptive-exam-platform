@@ -1,4 +1,5 @@
 from django.db import IntegrityError, DatabaseError, transaction
+import logging
 
 from common.constants import INITIAL_USER_TOKEN_BALANCE
 
@@ -12,6 +13,8 @@ from .models import (
     TokenTransaction,
     UserWallet,
 )
+
+logger = logging.getLogger("django")
 
 
 class WalletService:
@@ -35,12 +38,15 @@ class WalletService:
                 description="Initial token allocation during account registration.",
             )
 
+            logger.info("Created wallet for user ID: %s with initial balance: %s", user.id, INITIAL_USER_TOKEN_BALANCE)
             return wallet
 
         except IntegrityError:
+            logger.warning("Wallet creation failed: Wallet already exists for user ID: %s", user.id)
             raise WalletAlreadyExistsException()
 
-        except DatabaseError:
+        except DatabaseError as e:
+            logger.error("Database error during wallet creation for user ID: %s - %s", user.id, e, exc_info=True)
             raise WalletException(
                 detail="Failed to create user wallet."
             )
@@ -73,10 +79,12 @@ class WalletService:
                 balance_after_transaction=wallet.token_balance,
                 description=description,
             )
-
+            
+            logger.info("Credited %s tokens to wallet ID: %s (Reason: %s). New balance: %s", amount, wallet.id, reason, wallet.token_balance)
             return wallet
 
-        except DatabaseError:
+        except DatabaseError as e:
+            logger.error("Database error crediting tokens for wallet ID: %s - %s", wallet.id, e, exc_info=True)
             raise WalletException(
                 detail="Failed to credit tokens."
             )
@@ -90,6 +98,7 @@ class WalletService:
         description="",
     ):
         if wallet.token_balance < amount:
+            logger.warning("Debit failed: Insufficient balance for wallet ID: %s. Requested: %s, Available: %s", wallet.id, amount, wallet.token_balance)
             raise InsufficientTokenBalanceException()
 
         try:
@@ -113,9 +122,11 @@ class WalletService:
                 description=description,
             )
 
+            logger.info("Debited %s tokens from wallet ID: %s (Reason: %s). New balance: %s", amount, wallet.id, reason, wallet.token_balance)
             return wallet
 
-        except DatabaseError:
+        except DatabaseError as e:
+            logger.error("Database error debiting tokens for wallet ID: %s - %s", wallet.id, e, exc_info=True)
             raise WalletException(
                 detail="Failed to debit tokens."
             )

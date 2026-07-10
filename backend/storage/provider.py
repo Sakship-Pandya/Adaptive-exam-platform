@@ -2,6 +2,7 @@ import boto3
 from botocore.client import Config
 from botocore.exceptions import ClientError, EndpointConnectionError
 from decouple import config
+import logging
 
 from storage.exceptions import (
     BucketCreationException,
@@ -11,6 +12,8 @@ from storage.exceptions import (
     StorageConnectionException,
     StorageException,
 )
+
+logger = logging.getLogger("files")
 
 class MinIOProvider:
     """
@@ -61,11 +64,13 @@ class MinIOProvider:
             return True
 
         except EndpointConnectionError as exc:
+            logger.error("Storage connection failed: Unable to reach endpoint %s", self.endpoint)
             raise StorageConnectionException(
                 detail="Unable to connect to the storage provider."
             ) from exc
 
         except ClientError as exc:
+            logger.error("Storage connection failed: Unexpected client error %s", exc, exc_info=True)
             raise StorageConnectionException(
                 detail="Storage provider returned an unexpected response."
             ) from exc
@@ -105,9 +110,11 @@ class MinIOProvider:
             if self.bucket_exists():
                 return
 
+            logger.info("Creating missing bucket: %s", self.bucket_name)
             self._client.create_bucket(Bucket=self.bucket_name)
 
         except ClientError as exc:
+            logger.error("Failed to create bucket %s: %s", self.bucket_name, exc, exc_info=True)
             raise BucketCreationException(
                 detail=f"Unable to create bucket '{self.bucket_name}'."
             ) from exc
@@ -159,7 +166,7 @@ class MinIOProvider:
         """
 
         try:
-            return self._client.generate_presigned_url(
+            url = self._client.generate_presigned_url(
                 ClientMethod="put_object",
                 Params={
                     "Bucket": self.bucket_name,
@@ -168,8 +175,11 @@ class MinIOProvider:
                 },
                 ExpiresIn=expires_in,
             )
+            logger.info("Generated pre-signed upload URL for storage key: %s (expires in %s seconds)", storage_key, expires_in)
+            return url
 
         except ClientError as exc:
+            logger.error("Failed to generate upload URL for storage key %s: %s", storage_key, exc, exc_info=True)
             raise PresignedURLException(
                 detail="Failed to generate upload URL."
             ) from exc
@@ -210,10 +220,12 @@ class MinIOProvider:
             error_code = exc.response.get("Error", {}).get("Code")
 
             if error_code in ("404", "NoSuchKey", "NotFound"):
+                logger.warning("Object metadata not found for key: %s", storage_key)
                 raise ObjectNotFoundException(
                     detail="The requested object does not exist."
                 ) from exc
 
+            logger.error("Failed to retrieve object metadata for key %s: %s", storage_key, exc, exc_info=True)
             raise StorageException(
                 detail="Failed to retrieve object metadata."
             ) from exc
@@ -252,10 +264,12 @@ class MinIOProvider:
             error_code = exc.response.get("Error", {}).get("Code")
 
             if error_code in ("404", "NoSuchKey", "NotFound"):
+                logger.warning("Object not found for key: %s", storage_key)
                 raise ObjectNotFoundException(
                     detail="The requested object does not exist."
                 ) from exc
 
+            logger.error("Failed to retrieve object for key %s: %s", storage_key, exc, exc_info=True)
             raise StorageException(
                 detail="Failed to retrieve object from storage."
             ) from exc
@@ -283,8 +297,10 @@ class MinIOProvider:
                 Bucket=self.bucket_name,
                 Key=storage_key,
             )
+            logger.info("Successfully deleted object from storage: %s", storage_key)
 
         except ClientError as exc:
+            logger.error("Failed to delete object %s from storage: %s", storage_key, exc, exc_info=True)
             raise StorageException(
                 detail="Failed to delete object from storage."
             ) from exc

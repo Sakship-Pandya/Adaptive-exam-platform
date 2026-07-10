@@ -116,3 +116,4 @@ scripts/
 .codex/
 .agents/
 tests/
+backend/logs

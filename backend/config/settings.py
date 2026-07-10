@@ -36,6 +36,116 @@ CORS_ALLOWED_ORIGINS = [
     "http://localhost:5500",
 ]
 
+# Logging
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+
+    "formatters": {
+        "standard": {
+            "format": (
+                "%(asctime)s | "
+                "%(levelname)s | "
+                "%(name)s | "
+                "%(message)s"
+            ),
+        },
+    },
+
+    "handlers": {
+
+        "console": {
+            "class": "logging.StreamHandler",
+            "formatter": "standard",
+        },
+
+        "application_file": {
+            "class": "logging.handlers.RotatingFileHandler",
+            "filename": BASE_DIR / "logs" / "application.log",
+            "maxBytes": 10 * 1024 * 1024,
+            "backupCount": 5,
+            "formatter": "standard",
+        },
+
+        "error_file": {
+            "class": "logging.handlers.RotatingFileHandler",
+            "filename": BASE_DIR / "logs" / "errors.log",
+            "maxBytes": 10 * 1024 * 1024,
+            "backupCount": 5,
+            "level": "ERROR",
+            "formatter": "standard",
+        },
+
+        "files_file": {
+            "class": "logging.handlers.RotatingFileHandler",
+            "filename": BASE_DIR / "logs" / "files.log",
+            "maxBytes": 10 * 1024 * 1024,
+            "backupCount": 5,
+            "formatter": "standard",
+        },
+
+        "processing_file": {
+            "class": "logging.handlers.RotatingFileHandler",
+            "filename": BASE_DIR / "logs" / "processing.log",
+            "maxBytes": 10 * 1024 * 1024,
+            "backupCount": 5,
+            "formatter": "standard",
+        },
+    },
+
+    "loggers": {
+
+        "django": {
+            "handlers": [
+                "console",
+                "application_file",
+                "error_file",
+            ],
+            "level": "INFO",
+            "propagate": False,
+        },
+
+        "files": {
+            "handlers": [
+                "console",
+                "files_file",
+                "error_file",
+            ],
+            "level": "INFO",
+            "propagate": False,
+        },
+
+        "processing": {
+            "handlers": [
+                "console",
+                "processing_file",
+                "error_file",
+            ],
+            "level": "INFO",
+            "propagate": False,
+        },
+
+        "workspace": {
+            "handlers": [
+                "console",
+                "application_file",
+                "error_file",
+            ],
+            "level": "INFO",
+            "propagate": False,
+        },
+
+        "authentication": {
+            "handlers": [
+                "console",
+                "application_file",
+                "error_file",
+            ],
+            "level": "INFO",
+            "propagate": False,
+        },
+    },
+}
 
 # Application definition
 

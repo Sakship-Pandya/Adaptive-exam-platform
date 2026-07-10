@@ -138,6 +138,11 @@ class FilesService:
                 [session_file for session_file, _ in prepared_files]
             )
 
+            logger.info(
+                "Created upload session %s for workspace %s expecting %d files",
+                upload_session.id, workspace.id, len(files)
+            )
+
             return {
                 "upload_session_id": upload_session.id,
                 "expires_at": upload_session.expires_at,
@@ -156,16 +161,19 @@ class FilesService:
             }
 
         except IntegrityError as exc:
+            logger.warning("Upload session creation failed due to IntegrityError for workspace %s", workspace.id)
             raise UploadSessionCreationException(
                 detail="Failed to create upload session."
             ) from exc
 
         except DatabaseError as exc:
+            logger.error("Database error occurred while creating upload session for workspace %s: %s", workspace.id, exc, exc_info=True)
             raise UploadSessionCreationException(
                 detail="Database error occurred while creating the upload session."
             ) from exc
 
         except Exception as exc:
+            logger.error("Unexpected error occurred while creating upload session for workspace %s: %s", workspace.id, exc, exc_info=True)
             raise FileException(
                 detail="Unexpected error occurred while creating the upload session."
             ) from exc
@@ -262,14 +270,15 @@ class FilesService:
             FileProcessingException,
         ) as processing_exception:
 
+            logger.error("Verification failed for upload session %s: %s", upload_session.id, processing_exception)
+
             try:
                 FilesService._fail_upload_session(
                     upload_session=upload_session,
                     failure_reason=str(processing_exception),
                 )
-            except (UploadSessionStateException, DatabaseError):
-                # Log here: session failure cleanup itself failed.
-                pass
+            except (UploadSessionStateException, DatabaseError) as rollback_exc:
+                logger.error("Failed to roll back upload session %s: %s", upload_session.id, rollback_exc, exc_info=True)
 
             raise processing_exception
 
@@ -278,6 +287,11 @@ class FilesService:
         )
 
         upload_session.refresh_from_db()
+
+        logger.info(
+            "Successfully completed upload session %s with %d verified files.",
+            upload_session.id, upload_session.uploaded_file_count
+        )
 
         return {
             "upload_session_id": upload_session.id,
@@ -379,6 +393,7 @@ class FilesService:
 
             registered_files.append(permanent_file)
 
+        logger.info("Successfully registered %d permanent files for upload session %s", len(registered_files), upload_session.id)
         return registered_files
 
     # ------------------------------------------------------------------
@@ -533,10 +548,11 @@ class FilesService:
         content_length = metadata["content_length"]
         content_type = metadata["content_type"]
 
-        if not isinstance(content_length, int):
-            raise UploadedObjectIntegrityException()
-
-        if content_length <= 0:
+        if not isinstance(content_length, int) or content_length <= 0:
+            logger.warning(
+                "Verification failed: Invalid content_length %s for file %s",
+                content_length, upload_session_file.id
+            )
             raise UploadedObjectIntegrityException()
 
         expected_content_type = (
@@ -554,9 +570,17 @@ class FilesService:
         )
 
         if content_length != upload_session_file.expected_file_size:
+            logger.warning(
+                "Verification failed: Size mismatch for file %s (Expected: %s, Actual: %s)",
+                upload_session_file.id, upload_session_file.expected_file_size, content_length
+            )
             raise UploadedObjectSizeMismatchException()
 
         if uploaded_content_type != expected_content_type:
+            logger.warning(
+                "Verification failed: Content type mismatch for file %s (Expected: %s, Actual: %s)",
+                upload_session_file.id, expected_content_type, uploaded_content_type
+            )
             raise UploadedObjectContentTypeMismatchException()
 
     @staticmethod
@@ -622,6 +646,10 @@ class FilesService:
                 ]
             )
         except DatabaseError as exc:
+            logger.error(
+                "Failed to persist verified metadata for file %s: %s",
+                upload_session_file.id, exc, exc_info=True
+            )
             raise UploadSessionVerificationException(
                 detail="Failed to persist verified metadata to the database."
             ) from exc
@@ -641,6 +669,11 @@ class FilesService:
         2. Mark UploadSessionFile records as failed.
         3. Mark UploadSession as failed.
         """
+        
+        logger.warning(
+            "Rolling back upload session %s due to failure: %s",
+            upload_session.id, failure_reason
+        )
 
         upload_session_files = UploadSessionFile.objects.filter(
             upload_session=upload_session,
@@ -875,6 +908,10 @@ class FilesService:
             return hasher.hexdigest()
 
         except Exception as exc:
+            logger.error(
+                "Failed to calculate SHA-256 hash for storage key %s: %s",
+                upload_session_file.storage_key, exc, exc_info=True
+            )
             raise FileProcessingException(
                 "Failed to calculate the SHA-256 hash of the uploaded file."
             ) from exc
@@ -972,6 +1009,10 @@ class FilesService:
         except IntegrityError as exc:
             raise DuplicateFileHashException() from exc
         except DatabaseError as exc:
+            logger.error(
+                "Database error while creating permanent file for session file %s: %s",
+                upload_session_file.id, exc, exc_info=True
+            )
             raise FileProcessingException(
                 "Failed to create the permanent file record."
             ) from exc

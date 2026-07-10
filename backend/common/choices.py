@@ -27,10 +27,28 @@ class WorkspaceStatus(models.TextChoices):
     FAILED = "FAILED", "Failed"
     ARCHIVED = "ARCHIVED", "Archived"
 
-class WorkspaceStatus(models.TextChoices):
-    EMPTY = "EMPTY", "Empty"
-    READY_FOR_PROCESSING = "READY_FOR_PROCESSING", "Ready for Processing"
-    PROCESSING = "PROCESSING", "Processing"
-    READY = "READY", "Ready"
+class FileRole(models.TextChoices):
+    QUESTION_BANK = "QUESTION_BANK", "Question Bank"
+    NOTES = "NOTES", "Notes"
+
+
+class UploadSessionStatus(models.TextChoices):
+    PENDING = "PENDING", "Pending"
+    VERIFYING = "VERIFYING", "Verifying"
+    COMPLETED = "COMPLETED", "Completed"
     FAILED = "FAILED", "Failed"
+    CLEANED = "CLEANED", "Cleaned"
+
+
+class UploadFileStatus(models.TextChoices):
+    PENDING = "PENDING", "Pending"
+    UPLOADED = "UPLOADED", "Uploaded"
+    VERIFIED = "VERIFIED", "Verified"
+    FAILED = "FAILED", "Failed"
+
+
+class FileStatus(models.TextChoices):
+    ACTIVE = "ACTIVE", "Active"
+    PROCESSING = "PROCESSING", "Processing"
     ARCHIVED = "ARCHIVED", "Archived"
+    DELETED = "DELETED", "Deleted"

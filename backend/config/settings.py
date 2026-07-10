@@ -27,7 +27,14 @@ SECRET_KEY = 'django-insecure-1t14+sd2d3exlhk!oycsv-v%no966d96akp6lqncvuh*80_%er
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ['127.0.0.1', 'localhost', '127.0.0.1:5000', 'localhost:5000']
+
+CORS_ALLOWED_ORIGINS = [
+    "http://127.0.0.1:5000",
+    "http://localhost:5000",
+    "http://127.0.0.1:5500",
+    "http://localhost:5500",
+]
 
 
 # Application definition
@@ -41,6 +48,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
 
     # Third-party apps
+    'corsheaders',
     'rest_framework',
     'rest_framework_simplejwt',
     'rest_framework_simplejwt.token_blacklist',
@@ -62,6 +70,7 @@ AUTH_USER_MODEL = "authentication.User"
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
+    'corsheaders.middleware.CorsMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
@@ -170,3 +179,6 @@ STATIC_URL = 'static/'
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+# Upload session settings
+UPLOAD_SESSION_EXPIRY_SECONDS = 3600

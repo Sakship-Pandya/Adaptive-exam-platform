@@ -126,7 +126,7 @@ export default function Navbar({
 
       {/* Right – actions */}
       <div className="nav-actions">
-        <span className='space'></span>
+        <span className='space'>  </span>
         <button
           id="nav-create-workspace-btn"
           className="nav-create-btn"

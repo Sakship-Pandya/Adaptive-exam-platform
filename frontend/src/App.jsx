@@ -1,4 +1,5 @@
 import Dashboard from './components/home/Dashboard';
+import Workspace from './components/workspace/Workspace';
 // import Auth from './components/auth/Auth'; // ← swap in when routing is wired up
 
 /**
@@ -6,7 +7,7 @@ import Dashboard from './components/home/Dashboard';
  *
  * Until a router is added, App renders the Dashboard directly with
  * placeholder/empty props.  Replace these with real data from your
- * API layer once the backend is connected.
+ * API layer once the bakend is connected.
  */
 function App() {
   // ─── Placeholder props (replace with API data) ──────────────────────────
@@ -22,9 +23,11 @@ function App() {
   };
   // ────────────────────────────────────────────────────────────────────────
 
-  return <Dashboard {...dashboardProps} />;
+  return <Workspace />;
+  // return <Dashboard {...dashboardProps} />;
   // return <Auth />;
 }
 
 export default App;
+
 
